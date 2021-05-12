@@ -32,8 +32,13 @@ class YamlConfig:
                 child_class = parent_cls.__dataclass_fields__[key].type
                 if child_class == pathlib.Path:
                     data[key] = pathlib.Path(val)
-                if inspect.isclass(child_class) and issubclass(child_class, YamlConfig):
+                elif inspect.isclass(child_class) and issubclass(child_class, YamlConfig):
                     data[key] = child_class(**convert_from_dict(child_class, val))
+                elif isinstance(val, list):
+                    child_class = child_class.__args__[0]
+                    if inspect.isclass(child_class) and issubclass(child_class, YamlConfig):
+                        data[key] = [child_class(**convert_from_dict(child_class, _)) for _ in val]
+
             return data
 
         with open(config_path) as f:
