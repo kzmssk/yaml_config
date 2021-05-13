@@ -38,6 +38,10 @@ class YamlConfig:
                     child_class = child_class.__args__[0]
                     if inspect.isclass(child_class) and issubclass(child_class, YamlConfig):
                         data[key] = [child_class(**convert_from_dict(child_class, _)) for _ in val]
+                elif isinstance(val, dict):
+                    child_class = child_class.__args__[1]
+                    if inspect.isclass(child_class) and issubclass(child_class, YamlConfig):
+                        data[key] = {k: child_class(**convert_from_dict(child_class, v)) for k, v in val.items()}
 
             return data
 
