@@ -1,5 +1,6 @@
 import pathlib
 import dataclasses
+import typing
 import yaml
 import inspect
 
@@ -27,13 +28,35 @@ class YamlConfig:
 
         assert config_path.exists(), f'YAML config {config_path} does not exist'
 
+        def _convert(child_class, val):
+            if child_class == pathlib.Path:
+                val = pathlib.Path(val)
+            elif inspect.isclass(child_class) and issubclass(child_class, YamlConfig):
+                val = child_class(**convert_from_dict(child_class, val))
+            elif isinstance(child_class, typing._GenericAlias):
+                if child_class.__origin__ == list:
+                    val = _convert_to_list(child_class, val)
+                elif child_class.__origin__ == dict:
+                    val = _convert_to_dict(child_class, val)
+
+            return val
+
+        def _convert_to_list(parent_cls, data):
+            child_class = parent_cls.__args__[0]
+
+            return [_convert(child_class, _) for _ in data]
+
+        def _convert_to_dict(parent_cls, data):
+            child_class = parent_cls.__args__[1]
+
+            return {k: _convert(child_class, v) for k, v in data.items()}
+
         def convert_from_dict(parent_cls, data):
             for key, val in data.items():
                 child_class = parent_cls.__dataclass_fields__[key].type
-                if child_class == pathlib.Path:
-                    data[key] = pathlib.Path(val)
-                if inspect.isclass(child_class) and issubclass(child_class, YamlConfig):
-                    data[key] = child_class(**convert_from_dict(child_class, val))
+
+                data[key] = _convert(child_class, val)
+
             return data
 
         with open(config_path) as f:
